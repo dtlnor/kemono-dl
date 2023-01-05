@@ -2,6 +2,7 @@ import requests
 from requests.adapters import HTTPAdapter, Retry
 import re
 import os
+import math
 from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
 import warnings
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
@@ -329,7 +330,12 @@ class downloader:
                 except:
                     logger.exception("Unable to download post | service:{service} user_id:{user_id} post_id:{id}".format(**post['post_variables']))
                 self.comp_posts.append("https://{site}/{service}/user/{user_id}/post/{id}".format(**post['post_variables']))
-            chunk_size = 50
+            min_chunk_size = 25
+            # adapt chunk_size. I assume min chunck size is 25, and it should be a multiple of 25
+            # for now kemono.party chunk size is 50
+            # however coomer.party chunk size is 25
+            chunk_size = math.ceil((len(json) / min_chunk_size)) * min_chunk_size
+            logger.debug(f"Adaptive chunk_size set to {chunk_size}")
             if len(json) < chunk_size:
                 return # completed
             chunk += chunk_size
