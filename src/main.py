@@ -2,6 +2,7 @@ import requests
 from requests.adapters import HTTPAdapter, Retry
 import re
 import os
+import math
 from bs4 import BeautifulSoup
 import time
 import datetime
@@ -46,6 +47,7 @@ class downloader:
         self.post_errors = 0
 
         # controls what to download/save
+        self.local_hash = not args['skip_local_hash']
         self.attachments = not args['skip_attachments']
         self.inline = args['inline']
         self.content = args['content']
