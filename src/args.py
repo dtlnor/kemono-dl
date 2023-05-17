@@ -162,8 +162,22 @@ def get_args():
                     metavar="EXT", type=str, default=[],
                     help="Only download attachments or inline images without the given file type(s). Takes a file extensions or list of file extensions separated by a comma. (ex mp4,jpg,gif,zip)")
 
+    ap.add_argument("--only-postname",
+                    metavar="postname", type=str, default=[],
+                    help="Only download posts with given word in its title")
 
+    ap.add_argument("--skip-postname",
+                    metavar="postname", type=str, default=[],
+                    help="Only download posts without given word in its title")
+                    
+    ap.add_argument("--only-filename",
+                    metavar="filename", type=str, default=[],
+                    help="Only download files with given word in its title")
 
+    ap.add_argument("--skip-filename",
+                    metavar="filename", type=str, default=[],
+                    help="Only download files without given word in its title")
+                 
     ap.add_argument("--version",
                     action='version', version=str(__version__),
                     help="Print the version and exit.")
@@ -272,6 +286,16 @@ def get_args():
     if args['skip_filetypes']:
         args['skip_filetypes'] = [s.strip().lower() for s in args["skip_filetypes"].split(",")]
 
+    if args['only_filename']:
+        args['only_filename'] = [s.strip().lower() for s in args["only_filename"].split(",")]
+    if args['skip_filename']:
+        args['skip_filename'] = [s.strip().lower() for s in args["skip_filename"].split(",")]
+
+    if args['only_postname']:
+        args['only_postname'] = [s.strip().lower() for s in args["only_postname"].split(",")]
+    if args['skip_postname']:
+        args['skip_postname'] = [s.strip().lower() for s in args["skip_postname"].split(",")]
+
     def check_date(args, key):
         try:
             args[key] = datetime.datetime.strptime(args[key], r'%Y%m%d')
@@ -329,5 +353,6 @@ def get_args():
         if len(temp) == 0:
             print(f"--coomer-fav-users no valid options were passed")
         args['coomer_fav_users'] = temp
+
 
     return args

@@ -72,6 +72,8 @@ class downloader:
         self.not_ext = args['skip_filetypes']
         self.max_size = args['max_filesize']
         self.min_size = args['min_filesize']
+        self.only_filename = args['only_filename']
+        self.not_filename = args['skip_filename']
 
         # controlls posts to ignore
         self.date = args['date']
@@ -79,6 +81,8 @@ class downloader:
         self.dateafter = args['dateafter']
         self.user_up_datebefore = args['user_updated_datebefore']
         self.user_up_dateafter = args['user_updated_dateafter']
+        self.only_postname = args['only_postname']
+        self.not_postname = args['skip_postname']
 
         # other
         self.retry = args['retry']
@@ -627,6 +631,23 @@ class downloader:
             logger.info("Skipping post | post was already downloaded this session")
             return True
 
+        # check post title
+        if self.only_postname:
+            skip = True
+            for w in self.only_postname:
+                print(w)
+                if w.lower() in post['post_variables']['title'].lower():
+                    skip = False
+            if skip:
+                logger.info("Skipping post | post title does not contains wanted word(s)")
+                return True
+                
+        if self.not_postname:
+            for w in self.only_postname:
+                if w.lower() in post['post_variables']['title'].lower():
+                    logger.info("Skipping post | post title contains unwanted word(s)")
+                    return True
+        
         return False
 
     def skip_file(self, file:dict):
@@ -664,6 +685,22 @@ class downloader:
             if file['file_variables']['ext'].lower() in self.not_ext:
                 logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File extention {file['file_variables']['ext']} found in exclude list {self.not_ext}")
                 return True
+
+        # check file name 
+        if self.only_filename:
+            skip = True
+            for w in self.only_filename:
+                if w.lower() in file['file_variables']['filename'].lower():
+                    skip = False
+            if skip:
+                logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name {file['file_variables']['filename']} not found")
+                return True
+                
+        if self.not_filename:
+            for w in self.only_filename:
+                if w.lower() in file['file_variables']['filename'].lower():
+                    logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name {file['file_variables']['filename']} found")
+                    return True
 
         # check file size
         if self.min_size or self.max_size:
