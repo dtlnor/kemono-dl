@@ -11,6 +11,7 @@ from io import BytesIO
 import json
 from numbers import Number
 import pathlib
+import itertools
 
 from .args import get_args
 from .logger import logger
@@ -386,7 +387,7 @@ class downloader:
         # download the post attachments
         for file in post['attachments']:
             try:
-                self.download_file(file, retry=self.retry)
+                self.download_file(file, retry=self.retry, postid=post['post_variables']['id'])
             except:
                 self.post_errors += 1
                 logger.exception(f"Failed to download: {file['file_path']}")
@@ -395,7 +396,7 @@ class downloader:
         # download the post inline files
         for file in post['inline_images']:
             try:
-                self.download_file(file, retry=self.retry)
+                self.download_file(file, retry=self.retry, postid=post['post_variables']['id'])
             except:
                 self.post_errors += 1
                 logger.exception(f"Failed to download: {file['file_path']}")
@@ -450,9 +451,9 @@ class downloader:
                 with open(file_path,'wb') as f:
                     f.write(file_content.encode("utf-8"))
 
-    def download_file(self, file:dict, retry:int):
+    def download_file(self, file:dict, retry:int, postid):
         # download a file
-        if self.skip_file(file):
+        if self.skip_file(file,postid=postid):
             return
 
         part_file = f"{file['file_path']}.part" if not self.no_part else file['file_path']
@@ -472,7 +473,7 @@ class downloader:
         except:
             logger.exception(f"Failed to get responce: {file['file_variables']['url']} | Retrying")
             if retry > 0:
-                self.download_file(file, retry=retry-1)
+                self.download_file(file, retry=retry-1, postid=postid)
                 return
             logger.error(f"Failed to get responce: {file['file_variables']['url']} | All retries failed")
             self.post_errors += 1
@@ -492,7 +493,7 @@ class downloader:
                 except:
                     logger.exception(f"Failed to get responce: {file['file_variables']['url']} | Retrying")
                     if retry > 0:
-                        self.download_file(file, retry=retry-1)
+                        self.download_file(file, retry=retry-1, postid=postid)
                         return
                     logger.error(f"Failed to get responce: {file['file_variables']['url']} | All retries failed")
                     self.post_errors += 1
@@ -529,7 +530,7 @@ class downloader:
             logger.warning(f"Failed to download: {os.path.split(file['file_path'])[1]} | 429 Too Many Requests | Sleeping for {self.ratelimit_sleep} seconds")
             time.sleep(self.ratelimit_sleep)
             if retry > 0:
-                self.download_file(file, retry=retry-1)
+                self.download_file(file, retry=retry-1, postid=postid)
                 return
             logger.error(f"Failed to download: {os.path.split(file['file_path'])[1]} | 429 Too Many Requests | All retries failed")
             self.post_errors += 1
@@ -565,7 +566,7 @@ class downloader:
                     if os.path.getsize(part_file)==total:
                         os.remove(part_file)
                     if retry > 0:
-                        self.download_file(file, retry=retry-1)
+                        self.download_file(file, retry=retry-1, postid=postid)
                         return
                     logger.error(f"File hash did not match server! | All retries failed")
                     self.post_errors += 1
@@ -650,7 +651,7 @@ class downloader:
         
         return False
 
-    def skip_file(self, file:dict):
+    def skip_file(self, file:dict, postid):
         # check if file exists
         if not self.overwrite:
             if os.path.exists(file['file_path']):
@@ -666,8 +667,11 @@ class downloader:
                 logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File already exists{confirm_msg}")
                 return True
             if self.dupe_check:
-                similar=pathlib.Path(file['file_path']).parent.glob(f'{file["file_variables"]["index"]}_*')
-                for x in similar:
+                fp_cur=pathlib.Path(file['file_path'])
+                fp_par=fp_cur.parent
+                similar=fp_par.glob(f'{file["file_variables"]["index"]}_*')
+                similar2=fp_par.parent.glob(f'*{postid}*/{file["file_variables"]["index"]}_*')
+                for x in itertools.chain(similar,similar2):
                     if 'hash' in file['file_variables'] and file['file_variables']['hash'] != None:
                         sim_hash = get_file_hash(str(x))
                         if sim_hash == file['file_variables']['hash']:
