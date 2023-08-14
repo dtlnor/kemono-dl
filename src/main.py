@@ -2,6 +2,7 @@ import requests
 from requests.adapters import HTTPAdapter, Retry
 import re
 import os
+import math
 from bs4 import BeautifulSoup
 import time
 import datetime
@@ -47,6 +48,7 @@ class downloader:
         self.post_errors = 0
 
         # controls what to download/save
+        self.local_hash = not args['skip_local_hash']
         self.attachments = not args['skip_attachments']
         self.inline = args['inline']
         self.content = args['content']
@@ -94,6 +96,7 @@ class downloader:
         self.force_unlisted = args['force_unlisted']
         self.retry_403 = args['retry_403']
         self.fp_added = args['fp_added']
+        self.cookie_domains = args['cookie_domains']
 
         self.session = RefererSession()
         retries = Retry(
@@ -138,7 +141,7 @@ class downloader:
                 self.get_post(f"https://{domain}/{favorite['service']}/user/{favorite['id']}")
 
     def get_post(self, url:str):
-        found = re.search(r'(https://(kemono\.party|coomer\.party)/)(([^/]+)/user/([^/]+)($|/post/[^/]+))', url)
+        found = re.search(r'(https://((?:kemono|coomer)\.(?:party|su))/)(([^/]+)/user/([^/]+)($|/post/[^/]+))', url)
         if not found:
             logger.error(f"Unable to find url parameters for {url}")
             return
@@ -157,7 +160,7 @@ class downloader:
         if not is_post:
             if self.skip_user(user):
                 return
-        logger.info(f"Downloading posts from {site}.party | {service} | {user['name']} | {user['id']}")
+        logger.info(f"Downloading posts from {site} | {service} | {user['name']} | {user['id']}")
         chunk = 0
         first = True
         while True:
@@ -195,11 +198,12 @@ class downloader:
                 except:
                     logger.exception("Unable to download post | service:{service} user_id:{user_id} post_id:{id}".format(**post['post_variables']))
                 self.comp_posts.append("https://{site}/{service}/user/{user_id}/post/{id}".format(**post['post_variables']))
-            # seems like kemono changed this, coomer is not yet
-            if site.startswith('kemono') or len(json)==50:
-                chunk_size=50
-            else:
-                chunk_size=25
+            min_chunk_size = 25
+            # adapt chunk_size. I assume min chunck size is 25, and it should be a multiple of 25
+            # for now kemono.party chunk size is 50
+            # however coomer.party chunk size is 25
+            chunk_size = math.ceil((len(json) / min_chunk_size)) * min_chunk_size
+            logger.debug(f"Adaptive chunk_size set to {chunk_size}")
             if len(json) < chunk_size:
                 return # completed
             chunk += chunk_size
@@ -252,8 +256,8 @@ class downloader:
 
     def get_inline_images(self, post, content_soup):
         # only get images that are hosted by the .party site
-        inline_images = [inline_image for inline_image in content_soup.find_all("img") if inline_image.get('src')]
-        inline_images = [inline_image for inline_image in inline_images if inline_image['src'][0] == '/']
+        inline_images = [inline_image for inline_image in content_soup.find_all("img") 
+                            if inline_image.get('src') and inline_image.get('src')[0] == '/']
         for index, inline_image in enumerate(inline_images):
             file = {}
             filename, file_extension = os.path.splitext(inline_image['src'].rsplit('/')[-1])
@@ -738,15 +742,17 @@ class downloader:
             if not domain:
                 logger.warning(f"URL is not downloadable | {url}")
                 continue
+            if domain not in self.cookie_domains.values():
+                logger.warning(f"Domain not in cookie files, cookie won't work properly | {url}")
             urls.append(url)
             if not domain in domains: domains.append(domain)
 
         if self.k_fav_posts or self.k_fav_users:
-            if not 'kemono.party' in domains:
-                domains.append('kemono.party')
+            if self.cookie_domains['kemono'] not in domains:
+                domains.append(self.cookie_domains['kemono'])
         if self.c_fav_posts or self.c_fav_users:
-            if not 'coomer.party' in domains:
-                domains.append('coomer.party')
+            if self.cookie_domains['coomer'] not in domains:
+                domains.append(self.cookie_domains['coomer'])
 
         for domain in domains:
             try:
@@ -757,26 +763,27 @@ class downloader:
             logger.error("No creator information was retrieved. | exiting")
             exit()
 
+        # TODO retry not implemented
         if self.k_fav_posts:
             try:
-                self.get_favorites('kemono.party', 'post')
+                self.get_favorites(self.cookie_domains['kemono'], 'post', retry=self.retry)
             except:
-                logger.exception("Unable to get favorite posts from kemono.party")
+                logger.exception(f"Unable to get favorite posts from {self.cookie_domains['kemono']}")
         if self.c_fav_posts:
             try:
-                self.get_favorites('coomer.party', 'post')
+                self.get_favorites(self.cookie_domains['coomer'], 'post', retry=self.retry)
             except:
-                logger.exception("Unable to get favorite posts from coomer.party")
+                logger.exception(f"Unable to get favorite posts from {self.cookie_domains['coomer']}")
         if self.k_fav_users:
             try:
-                self.get_favorites('kemono.party', 'artist', self.k_fav_users)
+                self.get_favorites(self.cookie_domains['kemono'], 'artist', self.k_fav_users)
             except:
-                logger.exception("Unable to get favorite users from kemono.party")
+                logger.exception(f"Unable to get favorite users from {self.cookie_domains['kemono']}")
         if self.c_fav_users:
             try:
-                self.get_favorites('coomer.party', 'artist', self.c_fav_users)
+                self.get_favorites(self.cookie_domains['coomer'], 'artist', self.c_fav_users)
             except:
-                logger.exception("Unable to get favorite users from coomer.party")
+                logger.exception(f"Unable to get favorite users from {self.cookie_domains['coomer']}")
 
         for url in urls:
             try:
