@@ -53,6 +53,7 @@ class downloader:
         self.inline = args['inline']
         self.content = args['content']
         self.extract_links = args['extract_links']
+        self.extract_all_links = args['extract_all_links']
         self.comments = args['comments']
         self.json = args['json']
         self.yt_dlp = args['yt_dlp']
@@ -96,6 +97,7 @@ class downloader:
         self.force_unlisted = args['force_unlisted']
         self.retry_403 = args['retry_403']
         self.fp_added = args['fp_added']
+        self.cookie_domains = args['cookie_domains']
 
         self.session = RefererSession()
         retries = Retry(
@@ -140,7 +142,7 @@ class downloader:
                 self.get_post(f"https://{domain}/{favorite['service']}/user/{favorite['id']}")
 
     def get_post(self, url:str):
-        found = re.search(r'(https://(kemono\.party|coomer\.party)/)(([^/]+)/user/([^/]+)($|/post/[^/]+))', url)
+        found = re.search(r'(https://((?:kemono|coomer)\.(?:party|su))/)(([^/]+)/user/([^/]+)($|/post/[^/]+))', url)
         if not found:
             logger.error(f"Unable to find url parameters for {url}")
             return
@@ -159,7 +161,7 @@ class downloader:
         if not is_post:
             if self.skip_user(user):
                 return
-        logger.info(f"Downloading posts from {site}.party | {service} | {user['name']} | {user['id']}")
+        logger.info(f"Downloading posts from {site} | {service} | {user['name']} | {user['id']}")
         chunk = 0
         first = True
         while True:
@@ -197,11 +199,12 @@ class downloader:
                 except:
                     logger.exception("Unable to download post | service:{service} user_id:{user_id} post_id:{id}".format(**post['post_variables']))
                 self.comp_posts.append("https://{site}/{service}/user/{user_id}/post/{id}".format(**post['post_variables']))
-            # seems like kemono changed this, coomer is not yet
-            if site.startswith('kemono') or len(json)==50:
-                chunk_size=50
-            else:
-                chunk_size=25
+            min_chunk_size = 25
+            # adapt chunk_size. I assume min chunck size is 25, and it should be a multiple of 25
+            # for now kemono.party chunk size is 50
+            # however coomer.party chunk size is 25
+            chunk_size = math.ceil((len(json) / min_chunk_size)) * min_chunk_size
+            logger.debug(f"Adaptive chunk_size set to {chunk_size}")
             if len(json) < chunk_size:
                 return # completed
             chunk += chunk_size
@@ -254,8 +257,8 @@ class downloader:
 
     def get_inline_images(self, post, content_soup):
         # only get images that are hosted by the .party site
-        inline_images = [inline_image for inline_image in content_soup.find_all("img") if inline_image.get('src')]
-        inline_images = [inline_image for inline_image in inline_images if inline_image['src'][0] == '/']
+        inline_images = [inline_image for inline_image in content_soup.find_all("img") 
+                            if inline_image.get('src') and inline_image.get('src')[0] == '/']
         for index, inline_image in enumerate(inline_images):
             file = {}
             filename, file_extension = os.path.splitext(inline_image['src'].rsplit('/')[-1])
@@ -364,7 +367,7 @@ class downloader:
 
         new_post['links'] = {'text':None,'file_variables':None, 'file_path':None}
         embed_url = "{url}\n".format(**post['embed']) if post['embed'] else ''
-        if self.extract_links:
+        if self.extract_links or self.extract_all_links:
             self.compile_content_links(new_post, content_soup, embed_url)
 
         return new_post
@@ -414,10 +417,14 @@ class downloader:
         # Write post content links
         if post['links']['text']:
             try:
-                self.write_to_file(post['links']['file_path'], post['links']['text'])
+                if self.extract_all_links:
+                    self.write_links_to_file(f".\{post['post_variables']['username']}.txt", post['links']['text'])
+                if self.extract_links:
+                    self.write_to_file(post['links']['file_path'], post['links']['text'])
             except:
                 self.post_errors += 1
                 logger.exception(f"Failed to save content links")
+
 
     def write_json(self, post:dict):
         try:
@@ -450,6 +457,10 @@ class downloader:
             else:
                 with open(file_path,'wb') as f:
                     f.write(file_content.encode("utf-8"))
+
+    def write_links_to_file(self, file_path, file_content):
+        with open(file_path,'a') as f:
+            print(file_content, file=f)
 
     def download_file(self, file:dict, retry:int, postid):
         # download a file
@@ -636,17 +647,17 @@ class downloader:
         if self.only_postname:
             skip = True
             for w in self.only_postname:
-                print(w)
                 if w.lower() in post['post_variables']['title'].lower():
                     skip = False
+                    break
             if skip:
-                logger.info("Skipping post | post title does not contains wanted word(s)")
+                logger.info(f"Skipping post | post title does not contain any of the given word(s): {self.only_postname}")
                 return True
                 
         if self.not_postname:
-            for w in self.only_postname:
+            for w in self.not_postname:
                 if w.lower() in post['post_variables']['title'].lower():
-                    logger.info("Skipping post | post title contains unwanted word(s)")
+                    logger.info(f"Skipping post | post title contains word: {w}")
                     return True
         
         return False
@@ -697,13 +708,13 @@ class downloader:
                 if w.lower() in file['file_variables']['filename'].lower():
                     skip = False
             if skip:
-                logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name {file['file_variables']['filename']} not found")
+                logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name does not contain any of the given word(s): {self.only_filename} ")
                 return True
                 
         if self.not_filename:
-            for w in self.only_filename:
+            for w in self.not_filename:
                 if w.lower() in file['file_variables']['filename'].lower():
-                    logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name {file['file_variables']['filename']} found")
+                    logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name contains word: {w}")
                     return True
 
         # check file size
@@ -740,15 +751,17 @@ class downloader:
             if not domain:
                 logger.warning(f"URL is not downloadable | {url}")
                 continue
+            if domain not in self.cookie_domains.values():
+                logger.warning(f"Domain not in cookie files, cookie won't work properly | {url}")
             urls.append(url)
             if not domain in domains: domains.append(domain)
 
         if self.k_fav_posts or self.k_fav_users:
-            if not 'kemono.party' in domains:
-                domains.append('kemono.party')
+            if self.cookie_domains['kemono'] not in domains:
+                domains.append(self.cookie_domains['kemono'])
         if self.c_fav_posts or self.c_fav_users:
-            if not 'coomer.party' in domains:
-                domains.append('coomer.party')
+            if self.cookie_domains['coomer'] not in domains:
+                domains.append(self.cookie_domains['coomer'])
 
         for domain in domains:
             try:
@@ -759,26 +772,27 @@ class downloader:
             logger.error("No creator information was retrieved. | exiting")
             exit()
 
+        # TODO retry not implemented
         if self.k_fav_posts:
             try:
-                self.get_favorites('kemono.party', 'post')
+                self.get_favorites(self.cookie_domains['kemono'], 'post', retry=self.retry)
             except:
-                logger.exception("Unable to get favorite posts from kemono.party")
+                logger.exception(f"Unable to get favorite posts from {self.cookie_domains['kemono']}")
         if self.c_fav_posts:
             try:
-                self.get_favorites('coomer.party', 'post')
+                self.get_favorites(self.cookie_domains['coomer'], 'post', retry=self.retry)
             except:
-                logger.exception("Unable to get favorite posts from coomer.party")
+                logger.exception(f"Unable to get favorite posts from {self.cookie_domains['coomer']}")
         if self.k_fav_users:
             try:
-                self.get_favorites('kemono.party', 'artist', self.k_fav_users)
+                self.get_favorites(self.cookie_domains['kemono'], 'artist', self.k_fav_users)
             except:
-                logger.exception("Unable to get favorite users from kemono.party")
+                logger.exception(f"Unable to get favorite users from {self.cookie_domains['kemono']}")
         if self.c_fav_users:
             try:
-                self.get_favorites('coomer.party', 'artist', self.c_fav_users)
+                self.get_favorites(self.cookie_domains['coomer'], 'artist', self.c_fav_users)
             except:
-                logger.exception("Unable to get favorite users from coomer.party")
+                logger.exception(f"Unable to get favorite users from {self.cookie_domains['coomer']}")
 
         for url in urls:
             try:
