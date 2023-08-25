@@ -53,6 +53,7 @@ class downloader:
         self.inline = args['inline']
         self.content = args['content']
         self.extract_links = args['extract_links']
+        self.extract_all_links = args['extract_all_links']
         self.comments = args['comments']
         self.json = args['json']
         self.yt_dlp = args['yt_dlp']
@@ -366,7 +367,7 @@ class downloader:
 
         new_post['links'] = {'text':None,'file_variables':None, 'file_path':None}
         embed_url = "{url}\n".format(**post['embed']) if post['embed'] else ''
-        if self.extract_links:
+        if self.extract_links or self.extract_all_links:
             self.compile_content_links(new_post, content_soup, embed_url)
 
         return new_post
@@ -416,10 +417,14 @@ class downloader:
         # Write post content links
         if post['links']['text']:
             try:
-                self.write_to_file(post['links']['file_path'], post['links']['text'])
+                if self.extract_all_links:
+                    self.write_links_to_file(f".\{post['post_variables']['username']}.txt", post['links']['text'])
+                if self.extract_links:
+                    self.write_to_file(post['links']['file_path'], post['links']['text'])
             except:
                 self.post_errors += 1
                 logger.exception(f"Failed to save content links")
+
 
     def write_json(self, post:dict):
         try:
@@ -452,6 +457,10 @@ class downloader:
             else:
                 with open(file_path,'wb') as f:
                     f.write(file_content.encode("utf-8"))
+
+    def write_links_to_file(self, file_path, file_content):
+        with open(file_path,'a') as f:
+            print(file_content, file=f)
 
     def download_file(self, file:dict, retry:int, postid):
         # download a file
@@ -638,17 +647,17 @@ class downloader:
         if self.only_postname:
             skip = True
             for w in self.only_postname:
-                print(w)
                 if w.lower() in post['post_variables']['title'].lower():
                     skip = False
+                    break
             if skip:
-                logger.info("Skipping post | post title does not contains wanted word(s)")
+                logger.info(f"Skipping post | post title does not contain any of the given word(s): {self.only_postname}")
                 return True
                 
         if self.not_postname:
-            for w in self.only_postname:
+            for w in self.not_postname:
                 if w.lower() in post['post_variables']['title'].lower():
-                    logger.info("Skipping post | post title contains unwanted word(s)")
+                    logger.info(f"Skipping post | post title contains word: {w}")
                     return True
         
         return False
@@ -699,13 +708,13 @@ class downloader:
                 if w.lower() in file['file_variables']['filename'].lower():
                     skip = False
             if skip:
-                logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name {file['file_variables']['filename']} not found")
+                logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name does not contain any of the given word(s): {self.only_filename} ")
                 return True
                 
         if self.not_filename:
-            for w in self.only_filename:
+            for w in self.not_filename:
                 if w.lower() in file['file_variables']['filename'].lower():
-                    logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name {file['file_variables']['filename']} found")
+                    logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File name contains word: {w}")
                     return True
 
         # check file size

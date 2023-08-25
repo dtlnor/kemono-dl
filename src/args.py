@@ -62,6 +62,11 @@ def get_args():
                     action='store_true', default=False,
                     help="Write extracted links from post content to a text file.")
 
+    ap.add_argument("--extract-all-links",
+                    action='store_true', default=False,
+                    help="Write all extracted links from poster to USERNAME.txt.")
+
+
     ap.add_argument("--dms",
                     action='store_true', default=False,
                     help="Write user dms to a html file. Only works when a user url is passed.")
@@ -164,19 +169,19 @@ def get_args():
 
     ap.add_argument("--only-postname",
                     metavar="postname", type=str, default=[],
-                    help="Only download posts with given word in its title")
+                    help="Only download posts with at least one of the given words in its title")
 
     ap.add_argument("--skip-postname",
                     metavar="postname", type=str, default=[],
-                    help="Only download posts without given word in its title")
+                    help="Only download posts without any of the given words in its title")
                     
     ap.add_argument("--only-filename",
                     metavar="filename", type=str, default=[],
-                    help="Only download files with given word in its title")
+                    help="Only download files with at least one of the given words in its title")
 
     ap.add_argument("--skip-filename",
                     metavar="filename", type=str, default=[],
-                    help="Only download files without given word in its title")
+                    help="Only download files without any of the given words in its title")
                  
     ap.add_argument("--version",
                     action='version', version=str(__version__),
