@@ -98,6 +98,7 @@ class downloader:
         self.retry_403 = args['retry_403']
         self.fp_added = args['fp_added']
         self.cookie_domains = args['cookie_domains']
+        self.fancards = args['fancards']
 
         self.session = RefererSession()
         retries = Retry(
@@ -178,17 +179,20 @@ class downloader:
                     logger.error(f"Unable to find user json for {api}?o={chunk}")
                 return # completed
             for post in json:
+                # only download once
+                if not is_post and first:
+                    post_tmp = self.clean_post(post, user, site)
+                    self.download_icon_banner(post_tmp, self.icon_banner)
+                    if self.dms:
+                        self.write_dms(post_tmp)
+                    if self.fancards:
+                        self.download_fancards(post_tmp)
+                    first = False
                 post['site']=site
                 if self.archive_file:
                     if self.skip_post(post,True):
                         continue
                 post = self.clean_post(post, user, site)
-                # only download once
-                if not is_post and first:
-                    self.download_icon_banner(post, self.icon_banner)
-                    if self.dms:
-                        self.write_dms(post)
-                    first = False
                 if self.skip_post(post,False):
                     continue
                 try:
@@ -214,10 +218,10 @@ class downloader:
         for img_type in img_types:
             if post['post_variables']['service'] in {'dlsite'}:
                 logger.warning(f"Profile {img_type}s are not supported for {post['post_variables']['service']} users")
-                return
+                continue
             if post['post_variables']['service'] in {'gumroad'} and img_type == 'banner':
                 logger.warning(f"Profile {img_type}s are not supported for {post['post_variables']['service']} users")
-                return
+                continue
             image_url = "https://{site}/{img_type}s/{service}/{user_id}".format(img_type=img_type, **post['post_variables'])
             response = self.session.get(url=image_url,headers=self.headers, cookies=self.cookies, timeout=self.timeout)
             try:
@@ -229,7 +233,7 @@ class downloader:
                 file_path = compile_file_path(post['post_path'], post['post_variables'], file_variables, self.user_filename_template, self.restrict_ascii)
                 if os.path.exists(file_path):
                     logger.info(f"Skipping: {os.path.split(file_path)[1]} | File already exists")
-                    return
+                    continue
                 logger.info(f"Downloading: {os.path.split(file_path)[1]}")
                 logger.debug(f"Downloading to: {file_path}")
                 if not self.simulate:
@@ -254,6 +258,34 @@ class downloader:
         }
         file_path = compile_file_path(post['post_path'], post['post_variables'], file_variables, self.user_filename_template, self.restrict_ascii)
         self.write_to_file(file_path, dms_soup.prettify())
+
+    def download_fancards(self, post:dict):
+        # no api method to get fancards so using from html (not future proof)
+        if post['post_variables']['service'] != 'fanbox':
+            logger.debug("Skipping fancards for non fanbox user https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
+            return
+        post_url = "https://{site}/{service}/user/{user_id}/fancards".format(**post['post_variables'])
+        logger.info(f"Downloading fancards {post_url}")
+        response = self.session.get(url=post_url, allow_redirects=True, headers=self.headers, cookies=self.cookies, timeout=self.timeout)
+        page_soup = BeautifulSoup(response.text, 'html.parser')
+        if page_soup.find("div", {"class": "no-results"}):
+            logger.info("No fancards found for https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
+            return
+        fancards_soup = page_soup.find_all("article", {"class": "fancard__file"})
+        for fancard in fancards_soup:
+            fancard_title = fancard.find("span").getText()
+            fancard_url = fancard.find("a", href=True)['href']
+            fancard_filename_orig = fancard_url.split("/")[-1]
+            fancard_filename, fancard_ext = fancard_filename_orig.split(".")
+            file_variables = {
+                'filename':'{title}_{name}'.format(title=fancard_title,name=fancard_filename),
+                'ext':fancard_ext,
+                'url':fancard_url,
+                'hash':fancard_filename,
+                'referer':post_url
+            }
+            file_path = compile_file_path(os.path.join(post['post_path'],'Fancards'), post['post_variables'], file_variables, self.user_filename_template, self.restrict_ascii)
+            self.download_file({"file_path":file_path,"file_variables":file_variables}, retry=self.retry, postid='dummy postid') #dummy postid
 
     def get_inline_images(self, post, content_soup):
         # only get images that are hosted by the .party site
@@ -678,18 +710,19 @@ class downloader:
                 logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | File already exists{confirm_msg}")
                 return True
             if self.dupe_check:
-                fp_cur=pathlib.Path(file['file_path'])
-                fp_par=fp_cur.parent
-                similar=fp_par.glob(f'{file["file_variables"]["index"]}_*')
-                similar2=fp_par.parent.glob(f'*{postid}*/{file["file_variables"]["index"]}_*')
-                for x in itertools.chain(similar,similar2):
-                    if 'hash' in file['file_variables'] and file['file_variables']['hash'] != None:
-                        sim_hash = get_file_hash(str(x))
-                        if sim_hash == file['file_variables']['hash']:
-                            if x.suffix == '.part':
-                                os.rename(x,x.parent/x.stem)
-                            logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | Same hash file exists")
-                            return True
+                if file["file_variables"].get("index") is not None:
+                    fp_cur=pathlib.Path(file['file_path'])
+                    fp_par=fp_cur.parent
+                    similar=fp_par.glob(f'{file["file_variables"]["index"]}_*')
+                    similar2=fp_par.parent.glob(f'*{postid}*/{file["file_variables"]["index"]}_*')
+                    for x in itertools.chain(similar,similar2):
+                        if 'hash' in file['file_variables'] and file['file_variables']['hash'] != None:
+                            sim_hash = get_file_hash(str(x))
+                            if sim_hash == file['file_variables']['hash']:
+                                if x.suffix == '.part':
+                                    os.rename(x,x.parent/x.stem)
+                                logger.info(f"Skipping: {os.path.split(file['file_path'])[1]} | Same hash file exists")
+                                return True
 
         # check file name extention
         if self.only_ext:
