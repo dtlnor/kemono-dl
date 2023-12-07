@@ -8,7 +8,7 @@ A downloader tool for kemono.party and coomer.party.
     - If the command doesn't run try adding `python -m`, `python3 -m`, or `py -m` to the front
 4.  Get a cookie.txt file from kemono.party/coomer.party
     - You can get a cookie text file on [Chrome](https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) or [Firefox](https://addons.mozilla.org/firefox/addon/cookies-txt/) with this extension.
-    - A cookie.txt file is required to use downloader!
+    - A cookie.txt file is required to use favorites.
 5.  Run `python kemono-dl.py --cookies "cookie.txt" --links https://kemono.party/SERVICE/user/USERID`
     - If the script doesn't run try replacing `python` with `python3` or `py`
 
@@ -52,6 +52,8 @@ Write user dms to a html file. Only works when a user url is passed.
 Download the users profile icon. Only works when a user url is passed.  
 `--banner`  
 Download the users profile banner. Only works when a user url is passed.  
+`--announcements`  
+Download announcements (always overwrite). Only works when a user url is passed.
 `--yt-dlp` (UNDER CONSTRUCTION)  
 Try to download the post embed with yt-dlp.  
 `--skip-attachments`  
