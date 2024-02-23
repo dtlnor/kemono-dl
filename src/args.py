@@ -233,7 +233,11 @@ def get_args():
 
     ap.add_argument("--dupe-check",
                     action=argparse.BooleanOptionalAction, default=True,
-                    help='Simple similar filename file search and hash compare to prevent duplicate downloads, only works with "{index}_" first file naming scheme')
+                    help='Simple similar filename file search and hash compare to prevent duplicate downloads')
+    
+    ap.add_argument("--dupe-check-pattern",
+                    metavar="DUPE_CHECK_PATTERN", type=str, default="{index}_*,*{id}*/{index}_*",
+                    help="Specify similar filename search patterns for dupe check, 2 patterns separated by comma, please include wildcard. (default: {index}_*,*{id}*/{index}_*)")
 
     ap.add_argument("--force-unlisted",
                     action=argparse.BooleanOptionalAction, default=False,

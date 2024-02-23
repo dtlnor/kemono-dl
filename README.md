@@ -132,12 +132,15 @@ The time in seconds to wait after being ratelimited (default: 120)
 Hash check before skip existing files. (default: False)    
 `--[no-]dupe-check`    
 Look for same index file with similar name and compare to server hash to prevent duplicate downloads. Works only for naming schemes starts with index, for now (maybe). (default: True)    
-> *notice: idk if last two args works together or not, i'll never use options other than these two defaults because that's why i make them default. if you use them and have issues please report.*
+> *notice: idk if two args above works together or not, i'll probably never use options other than these two defaults because that's why i make them default. if you use them and have issues please report.*
 
+`--dupe-check-pattern`    
+Specify two patterns used by dupe-check, one for search inside folder, one for search in parent folder, separated by comma. Please include wildcard. (default: "{index}_\*,\*{id}\*/{index}_\*")    
+Default is to look for files with same index within same folder and "neighbor" folder with same post id (useful when using default file/folder name pattern).    
 `--[no-]force-unlisted`    
 Still try to request api if user is not found in creators list. Use carefully. (default: False)    
 `--retry-403 COUNT`    
-When get 403 (possibly because of DDoS-Guard), retry without session up to `COUNT` times. (default: 0)    
+When get 403 (possibly because of DDoS-Guard), retry without session up to `COUNT` times. *This mitigation is probably long-outdated as the situation seems self-solved.* (default: 0)    
 `--[mo-]fp-added`    
 Filter posts by added date instead of published date. Override behavior of --date --dateafter --datebefore. (default: False)    
 
