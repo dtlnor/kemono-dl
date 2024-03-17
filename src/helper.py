@@ -65,7 +65,7 @@ def clean_file_name(file_name:str):
     file_name, file_extension = os.path.splitext(file_name)
     name_limit = 255-len(file_extension)-5
     name_clean = file_name[:name_limit] + file_extension
-    while len(name_clean.encode('utf-8','replace')) > 255: # same thing
+    while len(name_clean.encode('utf-8','replace')) > 250: # same thing, minus 5 for .part extension added in downloading file
         name_limit -= 1
         name_clean = file_name[:name_limit] + file_extension
     return name_clean

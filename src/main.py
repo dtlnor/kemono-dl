@@ -291,6 +291,9 @@ class downloader:
 
     def write_dms(self, post:dict):
         # no api method to get comments so using from html (not future proof)
+        if post['post_variables']['service'] != 'patreon':
+            logger.debug("Skipping dms for non patreon user https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
+            return
         post_url = "https://{site}/{service}/user/{user_id}/dms".format(**post['post_variables'])
         response = self.session.get(url=post_url, allow_redirects=True, headers=self.headers, cookies=self.cookies, timeout=self.timeout)
         page_soup = BeautifulSoup(response.text, 'html.parser')
