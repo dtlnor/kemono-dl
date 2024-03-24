@@ -303,7 +303,15 @@ class downloader:
                         return
                 comments_original=self.comments
                 self.comments=False
-                post_tmp = self.clean_post(post, user, site)
+                try:
+                    post_tmp = self.clean_post(post, user, site)
+                except:
+                    logger.warning(f"Failed to clean post for {api} | Probably 429 | Sleeping for {self.ratelimit_sleep} seconds")
+                    time.sleep(self.ratelimit_sleep)
+                    if retry > 0:
+                        self.get_post(url=url, retry=retry-1, chunk=chunk, first=True)
+                    return
+
                 if ret := self.skip_post(post_tmp):
                     if ret == 2:
                         return
