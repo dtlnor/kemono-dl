@@ -212,13 +212,13 @@ class downloader:
                         self.download_icon_banner(post_tmp, self.icon_banner, retry=self.retry)
                         if self.dms:
                             logger.debug(f"Writting dms | {user['name']} | {user['id']}")
-                            self.write_dms(post_tmp)
+                            self.write_dms(post_tmp,retry=self.retry)
                         if self.fancards:
                             logger.debug(f"Downloading fancards | {user['name']} | {user['id']}")
-                            self.download_fancards(post_tmp)
+                            self.download_fancards(post_tmp,retry=self.retry)
                         if self.announcements:
                             logger.debug(f"Writting announcements | {user['name']} | {user['id']}")
-                            self.write_announcements(post_tmp)
+                            self.write_announcements(post_tmp,retry=self.retry)
                         first = False
                     except:
                         logger.warning(f"Failed to get icon, banner, dms, fancards or announcements | Probably 429 | Sleeping for {self.ratelimit_sleep} seconds")
@@ -298,13 +298,24 @@ class downloader:
             except:
                 logger.error(f"Unable to download profile {img_type} for {post['post_variables']['username']}")
 
-    def write_dms(self, post:dict):
+    def write_dms(self, post:dict, retry:int):
         # no api method to get comments so using from html (not future proof)
         if post['post_variables']['service'] != 'patreon':
             logger.debug("Skipping dms for non patreon user https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
             return
         post_url = "https://{site}/{service}/user/{user_id}/dms".format(**post['post_variables'])
         response = self.session.get(url=post_url, allow_redirects=True, headers=self.headers, cookies=self.cookies, timeout=self.timeout)
+        if not response.ok:
+            if response.status_code==429:
+                logger.warning("Unable to download DMs for {service} {user_id} | 429 | Sleeping for {sec} seconds.".format(sec=self.ratelimit_sleep,**post['post_variables']))
+                time.sleep(self.ratelimit_sleep)
+            else:
+                logger.warning("Unable to download DMs for {service} {user_id} | {code} | Retrying.".format(core=response.status_code,**post['post_variables']))
+            if retry > 0:
+                self.write_dms(post=post,retry=retry-1)
+            else:
+                logger.error("Unable to download DMs for {service} {user_id} | {code} | All retry attempts failed.".format(core=response.status_code,**post['post_variables']))
+            return
         page_soup = BeautifulSoup(response.text, 'html.parser')
         if page_soup.find("div", {"class": "no-results"}):
             logger.info("No DMs found for https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
@@ -317,7 +328,7 @@ class downloader:
         file_path = compile_file_path(post['post_path'], post['post_variables'], file_variables, self.user_filename_template, self.restrict_ascii)
         self.write_to_file(file_path, dms_soup.prettify())
 
-    def download_fancards(self, post:dict):
+    def download_fancards(self, post:dict, retry:int):
         # there's api now, too lazy to rewrite
         if post['post_variables']['service'] != 'fanbox':
             logger.debug("Skipping fancards for non fanbox user https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
@@ -325,6 +336,17 @@ class downloader:
         post_url = "https://{site}/{service}/user/{user_id}/fancards".format(**post['post_variables'])
         logger.info(f"Downloading fancards {post_url}")
         response = self.session.get(url=post_url, allow_redirects=True, headers=self.headers, cookies=self.cookies, timeout=self.timeout)
+        if not response.ok:
+            if response.status_code==429:
+                logger.warning("Unable to find Fancards for {service} {user_id} | 429 | Sleeping for {sec} seconds.".format(sec=self.ratelimit_sleep,**post['post_variables']))
+                time.sleep(self.ratelimit_sleep)
+            else:
+                logger.warning("Unable to find Fancards for {service} {user_id} | {code} | Retrying.".format(core=response.status_code,**post['post_variables']))
+            if retry > 0:
+                self.download_fancards(post=post,retry=retry-1)
+            else:
+                logger.error("Unable to find Fancards for {service} {user_id} | {code} | All retry attempts failed.".format(core=response.status_code,**post['post_variables']))
+            return
         page_soup = BeautifulSoup(response.text, 'html.parser')
         if page_soup.find("div", {"class": "no-results"}):
             logger.info("No fancards found for https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
@@ -345,11 +367,19 @@ class downloader:
             file_path = compile_file_path(os.path.join(post['post_path'],'Fancards'), post['post_variables'], file_variables, self.user_filename_template, self.restrict_ascii)
             self.download_file({"file_path":file_path,"file_variables":file_variables}, retry=self.retry, post=post) #dummy postid
 
-    def write_announcements(self, post:dict):
+    def write_announcements(self, post:dict, retry:int):
         post_url = "https://{site}/api/v1/{service}/user/{user_id}/announcements".format(**post['post_variables'])
         response = self.session.get(url=post_url, allow_redirects=True, headers=self.headers, cookies=self.cookies, timeout=self.timeout)
         if not response.ok:
-            logger.error("Failed to download announcement, skipping...")
+            if response.status_code==429:
+                logger.warning("Unable to get announcements for {service} {user_id} | 429 | Sleeping for {sec} seconds.".format(sec=self.ratelimit_sleep,**post['post_variables']))
+                time.sleep(self.ratelimit_sleep)
+            else:
+                logger.warning("Unable to get announcements for {service} {user_id} | {code} | Retrying.".format(core=response.status_code,**post['post_variables']))
+            if retry > 0:
+                self.write_announcements(post=post,retry=retry-1)
+            else:
+                logger.error("Unable to get announcements for {service} {user_id} | {code} | All retry attempts failed.".format(core=response.status_code,**post['post_variables']))
             return
         if not len(response.json()):
             logger.info("No announcements found for https://{site}/{service}/user/{user_id}".format(**post['post_variables']))
@@ -464,7 +494,12 @@ class downloader:
             # loop over attachments and set file variables
             for index, attachment in enumerate(post['attachments']):
                 file = {}
-                filename, file_extension = os.path.splitext(attachment['name'])
+                if attachment.get('name') and isinstance(attachment.get('name'),str):
+                    filename, file_extension = os.path.splitext(attachment['name'])
+                elif attachment.get('path') and isinstance(attachment.get('path'),str):
+                    filename, file_extension = os.path.splitext(attachment['path'].split('/')[-1])
+                else:
+                    continue
                 m = re.search(r'[a-zA-Z0-9]{64}', attachment['path'])
                 file_hash = m.group(0) if m else None
                 file['file_variables'] = {
