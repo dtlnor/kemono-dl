@@ -50,7 +50,6 @@ class downloader:
         self.post_errors = 0
 
         # controls what to download/save
-        self.local_hash = not args['skip_local_hash']
         self.attachments = not args['skip_attachments']
         self.inline = args['inline']
         self.content = args['content']
@@ -101,7 +100,6 @@ class downloader:
         self.force_unlisted = args['force_unlisted']
         self.retry_403 = args['retry_403']
         self.fp_added = args['fp_added']
-        self.cookie_domains = args['cookie_domains']
         self.fancards = args['fancards']
         self.cookie_domains = args['cookie_domains']
 
