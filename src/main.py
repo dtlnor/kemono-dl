@@ -35,6 +35,8 @@ class downloader:
         self.cookies = args['cookies']
         self.timeout = 300
 
+        self.headcheck = args['head_check']
+
         # file/folder naming
         self.download_path_template = args['dirname_pattern']
         self.filename_template = args['filename_pattern']
@@ -631,14 +633,18 @@ class downloader:
         logger.debug(f"Downloading from: {file['file_variables']['url']}")
         logger.debug(f"Downloading to: {part_file}")
 
+        request_headers={'Referer':file['file_variables']['referer']}
         # try to resume part file
         resume_size = 0
-        if os.path.exists(part_file) and not self.overwrite:
+        if os.path.exists(part_file) and not self.overwrite and os.path.getsize(part_file):
             resume_size = os.path.getsize(part_file)
             logger.info(f"Trying to resuming partial download | Resume size: {resume_size} bytes")
+            request_headers['Range']=f"bytes={resume_size}-"
 
         try:
-            response = self.session.get(url=file['file_variables']['url'], stream=True, headers={**self.headers,'Range':f"bytes={resume_size}-", 'Referer':file['file_variables']['referer']}, cookies=self.cookies, timeout=self.timeout)
+            if self.headcheck:
+                head_ref = self.session.get(url=file['file_variables']['url'], stream=False, headers=dict(**self.headers,**{'Range':f'bytes={resume_size}-{resume_size+1023}'}), cookies=self.cookies, timeout=self.timeout).content
+            response = self.session.get(url=file['file_variables']['url'], stream=True, headers=dict(**self.headers,**request_headers), cookies=self.cookies, timeout=self.timeout)
         except:
             logger.exception(f"Failed to get responce: {file['file_variables']['url']} | Retrying")
             if retry > 0:
@@ -658,7 +664,7 @@ class downloader:
             for _ in range(self.retry_403):
                 logger.info('A 403 encountered, retry without session.')
                 try:
-                    response = requests.get(url=file['file_variables']['url'], stream=True, headers={'Range':f"bytes={resume_size}-", 'Referer':file['file_variables']['referer']}, timeout=self.timeout,proxies=self.proxies)
+                    response = requests.get(url=file['file_variables']['url'], stream=True, headers=request_headers, timeout=self.timeout,proxies=self.proxies)
                 except:
                     logger.exception(f"Failed to get responce: {file['file_variables']['url']} | Retrying")
                     if retry > 0:
@@ -717,12 +723,18 @@ class downloader:
             try:
                 if not os.path.exists(os.path.split(file['file_path'])[0]):
                     os.makedirs(os.path.split(file['file_path'])[0])
+                first_chunk=True
                 with open(part_file, 'wb' if resume_size == 0 else 'ab') as f:
                     start = time.time()
                     downloaded = resume_size
                     iter_chunk_size = 256<<10
                     puff = bytes()
                     for chunk in response.iter_content(chunk_size=iter_chunk_size):
+                        if first_chunk:
+                            first_chunk=False
+                            if self.headcheck:
+                                if chunk[:len(head_ref)]!=head_ref:
+                                    raise Exception("Head Check Mismatch")
                         puff += chunk
                         downloaded += len(chunk)
                         if len(puff) >= (32<<20)//iter_chunk_size*iter_chunk_size:

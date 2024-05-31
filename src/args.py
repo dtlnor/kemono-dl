@@ -259,6 +259,10 @@ def get_args():
                     action=argparse.BooleanOptionalAction, default=False,
                     help="Download announcements (always overwrite if site return more content than local one). Only works when a user url is passed.")
 
+    ap.add_argument("--head-check",
+                    action=argparse.BooleanOptionalAction, default=False,
+                    help="Check some first bytes of downloaded content with a separate request to fail quick if weird thing happend.")
+
     args = vars(ap.parse_args())
     args['cookie_domains'] = {'kemono': None, 'coomer': None}
 
