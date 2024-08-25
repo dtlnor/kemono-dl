@@ -3,6 +3,7 @@ import datetime
 import re
 import argparse
 from http.cookiejar import MozillaCookieJar, LoadError
+from urllib.parse import urlparse, urlunparse
 
 from .version import __version__
 
@@ -215,6 +216,10 @@ def get_args():
                     metavar="SEC", type=int, default=120,
                     help="The time in seconds to wait after being ratelimited (default: 120)")
 
+    ap.add_argument("--ratelimit-ms",
+                    metavar="MS", type=int, default=300,
+                    help="The time in millisecond to limit before next request (default: 300)")
+
     ap.add_argument("--user-agent",
                     metavar="UA", type=str, default='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
                     help="Set a custom user agent")
@@ -237,7 +242,7 @@ def get_args():
 
     ap.add_argument("--force-unlisted",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Still try to request api if user is not found in creators list. Use carefully.')
+                    help='Request user api without obtaining all creators list. Potential use case: the user is unlisted or the creators list api is down. Username will be unavailable and replaced by user id. Use carefully.')
 
     ap.add_argument("--retry-403",
                     metavar='COUNT', type=int, default=0,
@@ -262,6 +267,15 @@ def get_args():
     ap.add_argument("--head-check",
                     action=argparse.BooleanOptionalAction, default=False,
                     help="Check some first bytes of downloaded content with a separate request to fail quick if weird thing happend.")
+    
+    ap.add_argument("--proxy-agent",
+                    metavar="https://agent/proxy", type=str, default=None,
+                    help="Proxy agent URL. This is NOT standrad http/s proxy. Pass 'u' parameter to agent for proxying. Not enabled by default. "
+                            "Enable this you can not download kemono and commer at once.")
+    
+    ap.add_argument("--force-dss",
+                    metavar='LETTER', type=str, default=None,
+                    help='Force Data Server Series.')
 
     args = vars(ap.parse_args())
     args['cookie_domains'] = {'kemono': None, 'coomer': None}
@@ -400,5 +414,21 @@ def get_args():
             print(f"--coomer-fav-users no valid options were passed")
         args['coomer_fav_users'] = temp
 
+    if args['proxy_agent']:
+        u = urlparse(args['proxy_agent'])
+        if not u.netloc or not u.path:
+            print(f"Bad proxy agent url | Url shoule be something like https://example.com/agent"), exit()
+        if not u.scheme:
+            u.scheme = 'http'
+        args['proxy_agent'] = urlunparse(u)
+
+        # we should change cookie domain to proxy agent
+        new_cookies = MozillaCookieJar()
+        for cookie in args['cookies']:
+            cookie.domain = f'.{u.netloc}'
+            cookie.domain_specified = True
+            cookie.domain_initial_dot = True
+            new_cookies.set_cookie(cookie)
+        args['cookies'] = new_cookies
 
     return args
