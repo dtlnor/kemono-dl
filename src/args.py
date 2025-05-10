@@ -2,6 +2,7 @@ import os
 import datetime
 import re
 import argparse
+import sys
 from http.cookiejar import MozillaCookieJar, LoadError
 from urllib.parse import urlparse, urlunparse
 
@@ -230,11 +231,11 @@ def get_args():
 
     ap.add_argument("--local-hash",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Check hash before skip downloading local exist files')
+                    help='Check hash before skip downloading local exist files (default: False)')
 
     ap.add_argument("--dupe-check",
                     action=argparse.BooleanOptionalAction, default=True,
-                    help='Simple similar filename file search and hash compare to prevent duplicate downloads')
+                    help='Simple similar filename file search and hash compare to prevent duplicate downloads (default: True)')
     
     ap.add_argument("--dupe-check-pattern",
                     metavar="DUPE_CHECK_PATTERN", type=str, default="{index}_*,*{id}*/{index}_*",
@@ -242,7 +243,7 @@ def get_args():
 
     ap.add_argument("--force-unlisted",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Request user api without obtaining all creators list. Potential use case: the user is unlisted or the creators list api is down. Username will be unavailable and replaced by user id. Use carefully.')
+                    help='Request user api without obtaining all creators list. Potential use case: the user is unlisted or the creators list api is down. Username will be unavailable and replaced by user id. Use carefully. (default: False)')
 
     ap.add_argument("--retry-403",
                     metavar='COUNT', type=int, default=0,
@@ -250,23 +251,23 @@ def get_args():
 
     ap.add_argument("--fp-added",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Filter posts by added date instead of published date. Override behavior of --date --dateafter --datebefore.')
+                    help='Filter posts by added date instead of published date. Override behavior of --date --dateafter --datebefore. (default: False)')
     
     ap.add_argument("--fancards",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Download Fancards.')
+                    help='Download Fancards. (default: False)')
 
     ap.add_argument("--cccp",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Change all input links (--links and --from-file) to .su domain links.')
+                    help='Change all input links (--links and --from-file) to .su domain links. (default: False)')
 
     ap.add_argument("--announcements",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help="Download announcements (always overwrite if site return more content than local one). Only works when a user url is passed.")
+                    help="Download announcements (always overwrite if site return more content than local one). Only works when a user url is passed. (default: False)")
 
     ap.add_argument("--head-check",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help="Check some first bytes of downloaded content with a separate request to fail quick if weird thing happend.")
+                    help="Check some first bytes of downloaded content with a separate request to fail quick if weird thing happend. (default: False)")
     
     ap.add_argument("--proxy-agent",
                     metavar="https://agent/proxy", type=str, default=None,
@@ -276,11 +277,18 @@ def get_args():
     ap.add_argument("--force-dss",
                     metavar='LETTER', type=str, default=None,
                     help='Force Data Server Series.')
+    
+    ap.add_argument("--archives-password",
+                    action=argparse.BooleanOptionalAction, default=False,
+                    help="Try look for passwords of archived files (zip, 7z, rar), the password will be stored in \".pw\" file in the same place of the archive if found. (default: False)")
 
+    if len(sys.argv) < 2:
+        ap.print_usage()
+        sys.exit(1)
     args = vars(ap.parse_args())
     args['cookie_domains'] = {'kemono': None, 'coomer': None}
 
-    # takes a comma seperated lost of cookie files and loads them into a cookie jar
+    # takes a comma seperated list of cookie files and loads them into a cookie jar
     if args['cookies']:
         cookie_files = [s.strip() for s in args["cookies"].split(",")]
         args['cookies'] = MozillaCookieJar()

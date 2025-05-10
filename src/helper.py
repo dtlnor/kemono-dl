@@ -12,7 +12,7 @@ running_args = get_args()
 
 def parse_url(url):
     # parse urls
-    downloadable = re.search(r'^https://((?:kemono|coomer)\.(?:party|su))/([^/]+)/user/([^/]+)($|/post/([^/]+)$)',url)
+    downloadable = re.search(r'^https://((?:kemono|coomer)\.(?:party|su))/([^/]+)/user/([^/]+)($|/post/([^/]+))($|/revision/([^/]+)$)',url)
     if not downloadable:
         return None
     return downloadable.group(1)
@@ -83,17 +83,23 @@ def restrict_ascii(string:str):
 def check_date(post_date, date, datebefore, dateafter):
     if date:
         if date == post_date:
-            return False
+            return 0
+        elif date > post_date:
+            return 2
     if datebefore and dateafter:
         if dateafter <= post_date <= datebefore:
-            return False
+            return 0
+        elif dateafter > post_date:
+            return 2
     elif datebefore:
         if datebefore >= post_date:
-            return False
+            return 0
     elif dateafter:
         if dateafter <= post_date:
-            return False
-    return True
+            return 0
+        else:
+            return 2
+    return 1
 
 # prints download bar
 def print_download_bar(total:int, downloaded:int, resumed:int, start):
