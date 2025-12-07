@@ -35,62 +35,62 @@ def get_args():
                     help="Downloads favorite users from coomer.party/su of specified type or types separated by a comma. Types include: all, onlyfans. Your cookie file must have been gotten while logged in to work.")
 
     ap.add_argument("--kemono-fav-posts",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Downloads favorite posts from kemono.party/su. Your cookie file must have been gotten while logged in to work.")
 
     ap.add_argument("--coomer-fav-posts",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Downloads favorite posts from coomer.party/su. Your cookie file must have been gotten while logged in to work.")
 
 
 
     ap.add_argument("--inline",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Download the inline images from the post content.")
 
     ap.add_argument("--content",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Write the post content to a html file. The html file includes comments if `--comments` is passed.")
 
     ap.add_argument("--comments",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Write the post comments to a html file.")
 
     ap.add_argument("--json",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Write the post json to a file.")
 
     ap.add_argument("--extract-links",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Write extracted links from post content to a text file.")
 
     ap.add_argument("--extract-all-links",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Write all extracted links from poster to USERNAME.txt.")
 
 
     ap.add_argument("--dms",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Write user dms to a html file. Only works when a user url is passed.")
 
     ap.add_argument("--icon",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Download the users profile icon. Only works when a user url is passed.")
 
     ap.add_argument("--banner",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Download the users profile banner. Only works when a user url is passed.")
 
     ap.add_argument("--yt-dlp",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Try to download the post embed with yt-dlp.")
 
     ap.add_argument("--skip-attachments",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Do not download post attachments.")
 
     ap.add_argument("--overwrite",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Overwrite any previously created files.")
 
 
@@ -120,7 +120,7 @@ def get_args():
                     help="Set the date strf pattern variable. See Output Patterns for more detail.")
 
     ap.add_argument("--restrict-names",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help='Set all file and folder names to be limited to only the ascii character set.')
 
 
@@ -133,19 +133,19 @@ def get_args():
                     metavar="YYYYMMDD", type=str, default=None,
                     help="Only download posts published from this date.")
 
-    ap.add_argument("--datebefore",
+    ap.add_argument("--datebefore", "-db",
                     metavar="YYYYMMDD", type=str, default=None,
                     help="Only download posts published before this date.")
 
-    ap.add_argument("--dateafter",
+    ap.add_argument("--dateafter", "-da",
                     metavar="YYYYMMDD", type=str, default=None,
                     help="Only download posts published after this date.")
 
-    ap.add_argument("--user-updated-datebefore",
+    ap.add_argument("--user-updated-datebefore", "-udb",
                     metavar="YYYYMMDD", type=str, default=None,
                     help="Only download user posts if the user was updated before this date.")
 
-    ap.add_argument("--user-updated-dateafter",
+    ap.add_argument("--user-updated-dateafter", "-uda",
                     metavar="YYYYMMDD", type=str, default=None,
                     help="Only download user posts if the user was updated after this date.")
 
@@ -186,19 +186,19 @@ def get_args():
                     help="Print the version and exit.")
 
     ap.add_argument("--verbose",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Display debug information and copies output to a file.")
 
     ap.add_argument("--quiet",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Suppress printing except for warnings, errors, and exceptions.")
 
     ap.add_argument("--simulate",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Simulate the given command and do not write to disk.")
 
     ap.add_argument("--no-part-files",
-                    action='store_true', default=False,
+                    action=argparse.BooleanOptionalAction, default=False,
                     help="Do not save attachments or inline images as .part files while downloading. Files partially downloaded will not be resumed if program stops. ")
 
     ap.add_argument("--yt-dlp-args",
@@ -236,7 +236,7 @@ def get_args():
     ap.add_argument("--dupe-check",
                     action=argparse.BooleanOptionalAction, default=True,
                     help='Simple similar filename file search and hash compare to prevent duplicate downloads (default: True)')
-    
+
     ap.add_argument("--dupe-check-pattern",
                     metavar="DUPE_CHECK_PATTERN", type=str, default="{index}_*,*{id}*/{index}_*",
                     help="Specify similar filename search patterns for dupe check, 2 patterns separated by comma, please include wildcard. (default: {index}_*,*{id}*/{index}_*)")
@@ -252,14 +252,14 @@ def get_args():
     ap.add_argument("--fp-added",
                     action=argparse.BooleanOptionalAction, default=False,
                     help='Filter posts by added date instead of published date. Override behavior of --date --dateafter --datebefore. (default: False)')
-    
+
     ap.add_argument("--fancards",
                     action=argparse.BooleanOptionalAction, default=False,
                     help='Download Fancards. (default: False)')
 
-    ap.add_argument("--cccp",
+    ap.add_argument("--replace-tld", "--cccp",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help='Change all input links (--links and --from-file) to .su domain links. (default: False)')
+                    help='Change all input links (--links and --from-file) to .cr domain. Old argument name is kept for compatibility. (default: False)')
 
     ap.add_argument("--announcements",
                     action=argparse.BooleanOptionalAction, default=False,
@@ -267,20 +267,30 @@ def get_args():
 
     ap.add_argument("--head-check",
                     action=argparse.BooleanOptionalAction, default=False,
-                    help="Check some first bytes of downloaded content with a separate request to fail quick if weird thing happend. (default: False)")
-    
+                    # help="Check some first bytes of downloaded content with a separate request to fail quick if weird thing happend. (default: False)")
+                    help=argparse.SUPPRESS)
+
     ap.add_argument("--proxy-agent",
                     metavar="https://agent/proxy", type=str, default=None,
                     help="Proxy agent URL. This is NOT standrad http/s proxy. Pass 'u' parameter to agent for proxying. Not enabled by default. "
                             "Enable this you can not download kemono and commer at once.")
-    
+
     ap.add_argument("--force-dss",
                     metavar='LETTER', type=str, default=None,
-                    help='Force Data Server Series.')
-    
+                    # help='Force Data Server Series.')
+                    help=argparse.SUPPRESS)
+
     ap.add_argument("--archives-password",
                     action=argparse.BooleanOptionalAction, default=False,
                     help="Try look for passwords of archived files (zip, 7z, rar), the password will be stored in \".pw\" file in the same place of the archive if found. (default: False)")
+
+    ap.add_argument("--cache-creators",
+                    action=argparse.BooleanOptionalAction, default=False,
+                    help="Cache the creators list. (default: False)")
+
+    ap.add_argument("--cache-creators-expire",
+                    metavar="SEC", default=86400,
+                    help="Creators cache expire time in seconds. (default: 86400)")
 
     if len(sys.argv) < 2:
         ap.print_usage()
@@ -307,9 +317,9 @@ def get_args():
         # make sure cookies are wildcard for better compatibility
         for cookie in loaded_cookies:
             args['cookie_domains']['kemono'] = args['cookie_domains']['kemono'] or (
-                match := re.search(r'^(?:www)?\.?(kemono\.(?:party|su))$', cookie.domain)) and match.group(1)
+                match := re.search(r'^(?:www)?\.?(kemono\.(?:party|su|cr|st))$', cookie.domain)) and match.group(1)
             args['cookie_domains']['coomer'] = args['cookie_domains']['coomer'] or (
-                match := re.search(r'^(?:www)?\.?(coomer\.(?:party|su))$', cookie.domain)) and match.group(1)
+                match := re.search(r'^(?:www)?\.?(coomer\.(?:party|su|cr|st))$', cookie.domain)) and match.group(1)
             
             if cookie.domain.startswith('www.'):
                 cookie.domain = cookie.domain[3:]
